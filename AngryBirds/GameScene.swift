@@ -8,7 +8,7 @@
 import SpriteKit
 import GameplayKit
 
-class GameScene: SKScene {
+class GameScene: SKScene, SKPhysicsContactDelegate{
     
     var bird = SKSpriteNode()
     var background = SKSpriteNode()
@@ -18,9 +18,21 @@ class GameScene: SKScene {
     var gameStarted = false
     var birdStartPosition = CGPoint()
     
+    enum ColliderType: UInt32{
+        case Bird = 1
+        case Box = 2
+    }
+    
+    var scoreLabel = SKLabelNode()
+    var score = 0
+    
     override func didMove(to view: SKView) {
         
-        
+        //Physics
+        self.physicsBody = SKPhysicsBody(edgeLoopFrom: frame)
+        self.scene?.scaleMode = .aspectFit
+        self.physicsWorld.contactDelegate = self
+
 
         //backgroundPicture
         let backgroundTexture = SKTexture(imageNamed: "background")
@@ -43,6 +55,13 @@ class GameScene: SKScene {
         self.bird.physicsBody?.mass = 0.15
         self.bird.physicsBody?.allowsRotation = true
         self.bird.physicsBody?.accessibilityFrame = frame
+        
+                //Collusion
+        self.bird.physicsBody?.contactTestBitMask = ColliderType.Bird.rawValue
+        self.bird.physicsBody?.categoryBitMask = ColliderType.Bird.rawValue
+        self.bird.physicsBody?.collisionBitMask = ColliderType.Box.rawValue
+        
+        
         self.addChild(self.bird)
         self.birdStartPosition = self.bird.position
         
@@ -70,15 +89,31 @@ class GameScene: SKScene {
             self.bricks[i].physicsBody?.affectedByGravity = true
             self.bricks[i].physicsBody?.allowsRotation = true
             self.bricks[i].physicsBody?.mass = 0.1
-            print(frame.maxX,frame.maxY,frame.height,frame.width)
             self.bricks[i].physicsBody?.accessibilityFrame = frame
+            
+                //Collision
+            self.bricks[i].physicsBody?.collisionBitMask = ColliderType.Bird.rawValue
             
             self.addChild(self.bricks[i])
         }
         
-        self.physicsBody = SKPhysicsBody(edgeLoopFrom: frame)
+        //ScoreBoard
+        self.scoreLabel.fontName = "Helvetica"
+        self.scoreLabel.text = String(score)
+        self.scoreLabel.fontColor = SKColor.black
+        self.scoreLabel.fontSize = 60
+        self.scoreLabel.position = CGPoint(x: 0, y: self.frame.height / 4)
+        self.scoreLabel.zPosition = 2
+        self.addChild(self.scoreLabel)
                     
         
+    }
+    
+    func didBegin(_ contact: SKPhysicsContact) {
+        if contact.bodyA.collisionBitMask == ColliderType.Bird.rawValue || contact.bodyB.collisionBitMask == ColliderType.Bird.rawValue{
+            self.score += 1
+            self.scoreLabel.text = String(self.score)
+        }
     }
     
     
@@ -124,7 +159,7 @@ class GameScene: SKScene {
                     for node in touchNodes{
                         if let sprite = node as? SKSpriteNode{
                             if sprite == self.bird{
-                                if touchLocation.x < self.birdStartPosition.x{
+                                if touchLocation.x < self.birdStartPosition.x && touchLocation.x > -667 && touchLocation.y > -375 && touchLocation.y < 375 {
                                     self.bird.position = touchLocation
                                 }
                             }
@@ -172,17 +207,17 @@ class GameScene: SKScene {
         
         if gameStarted == true{
             if let birdPhysics = self.bird.physicsBody {
-                if birdPhysics.velocity.dx <= 0.1 && birdPhysics.velocity.dy <= 0.1 && birdPhysics.angularVelocity <= 0.1{
+                if (birdPhysics.velocity.dx <= 0.1 && birdPhysics.velocity.dy <= 0.1 && birdPhysics.angularVelocity <= 0.1) || (self.bird.position.x < -667 || self.bird.position.y < -375){
                     self.bird.position = self.birdStartPosition
                     birdPhysics.affectedByGravity = false
                     birdPhysics.velocity = CGVector(dx: 0, dy: 0)
                     self.bird.zPosition = 1
+                    self.score = 0
+                    self.scoreLabel.text = String(self.score)
                     self.gameStarted = false
                 }
             }
         }
-        print(bricks[2].position.x, bricks[2].position.y)
-
         // Called before each frame is rendered
     }
 }
